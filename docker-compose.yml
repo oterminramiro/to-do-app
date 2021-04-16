@@ -1,0 +1,76 @@
+version: '3'
+
+services:
+  nginx:
+    build:
+      context: docker/dev/nginx
+      dockerfile: Dockerfile
+    volumes:
+      - ./:/var/www
+      - ./docker/dev/nginx/logs:/var/log/nginx
+    ports:
+      - 5000:80
+      - 8000:81
+    links:
+      - client
+      - php
+
+  php:
+    build:
+      context: docker/dev/php
+      dockerfile: Dockerfile
+    volumes:
+      - ./api:/var/www/api
+    environment:
+      XDEBUG_CONFIG: "remote_enable=0"
+      PHP_IDE_CONFIG: "serverName=Docker"
+    links:
+      - database
+      - redis
+
+  adminer:
+    image: adminer
+    ports:
+      - 8080:8080
+    links:
+     - database
+    environment:
+      ADMINER_PLUGINS: tables-filter tinymce table-indexes-structure sql-log json-column edit-calendar dump-json dump-php dump-alter foreign-system
+    restart: always
+
+  database:
+    image: mysql
+    ports:
+        - 3306:3306
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - ./filesystem/mysql:/var/lib/mysql
+    environment:
+      TZ: "America/Argentina/Buenos_Aires"
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: laravel
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: password
+    cap_add:
+      - SYS_NICE  # CAP_SYS_NICE
+    restart: always
+
+  redis:
+    build:
+      context: docker/dev/redis
+      dockerfile: Dockerfile
+    volumes:
+      - redis:/data
+    ports:
+      - 63791:6379
+
+  client:
+    build:
+      context: docker/dev/client
+      dockerfile: Dockerfile
+    volumes:
+      - ./client:/var/www/client
+
+volumes:
+  redis:
+    driver: local
